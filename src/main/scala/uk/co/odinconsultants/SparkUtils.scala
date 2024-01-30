@@ -1,5 +1,6 @@
 package uk.co.odinconsultants
 
+import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.internal.StaticSQLConf.{CATALOG_IMPLEMENTATION, WAREHOUSE_PATH}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -21,13 +22,13 @@ object SparkUtils {
         .setMaster(master)
         .setAppName(app)
         .set("hive.metastore client.factory.class", "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactor")
-        .set(CATALOG_IMPLEMENTATION.key, "hive")
+//        .set(CATALOG_IMPLEMENTATION.key, "hive")
         .set("spark.sql.catalog.local.type", "hadoop")
         .set("aws.glue.cache.table.enable", "true")
         .set("aws.glue.cache.table.size", "1000")
         .set("aws.glue.cache.table.ttl-mins", "30")
 //        .set(DEFAULT_CATALOG.key, "local")
-        .set(WAREHOUSE_PATH.key, tmpDir)
+//        .set(WAREHOUSE_PATH.key, tmpDir)
         .set("spark.hadoop.hive.metastore.client.factory.class", "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
         .set("spark.hadoop.hive.metastore.warehouse.dir","s3://phbucketthatshouldreallynotexistyet/default")
         .set("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider, org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider, com.amazonaws.auth.EnvironmentVariableCredentialsProvider, org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider")
@@ -67,7 +68,6 @@ object SparkUtils {
         .set("aws.glue.cache.db.size","1000")
         .set("aws.glue.cache.db.ttl-mins","30")
 
-
         .setSparkHome(tmpDir)
     }
     SparkContext.getOrCreate(sparkConf)
@@ -78,12 +78,27 @@ object SparkUtils {
       .getOrCreate()
   }
 
+  def configureHadoop(conf: Configuration): Unit = {
+    conf.set("aws.glue.endpoint","https://glue.eu-west-2.amazonaws.com")
+    conf.set("aws.glue.region","eu-west-2")
+    conf.set("aws.glue.connection-timeout","30000")
+    conf.set("aws.glue.socket-timeout","30000")
+    conf.set("hive.imetastoreclient.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
+    conf.set("hive.metastore.client.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
+    conf.set("hive.metastore.uris","thrift://FOR_YOUR_METASTORE_URI_SEE_SPARK_UI_ENVIRONMENT_TAB:9083")
+    conf.set("hive.metastore.warehouse.dir","s3://phbucketthatshouldreallynotexistyet/default")
+    conf.set("hive.metastore.connect.retries","15")
+    conf.set("aws.glue.cache.table.enable","true")
+    conf.set("aws.glue.cache.table.size","1000")
+    conf.set("aws.glue.cache.table.ttl-mins","30")
+    conf.set("aws.glue.cache.db.enable","true")
+    conf.set("aws.glue.cache.db.size","1000")
+    conf.set("aws.glue.cache.db.ttl-mins","30")
+  }
+
   def main(args: Array[String]): Unit = {
-    val accessKey = args(0)
-    val secretKey = args(1)
     val spark = getSession()
-    spark.sparkContext.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", accessKey)
-    spark.sparkContext.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", secretKey)
+    configureHadoop(spark.sparkContext.hadoopConfiguration)
     val result_df = spark.range(1000)
     result_df.write//.partitionBy("my_column")
     .option("fs.s3a.committer.name", "partitioned")
