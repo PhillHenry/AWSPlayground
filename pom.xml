@@ -36,9 +36,15 @@
         <iceberg.version>1.4.3</iceberg.version>
         <documentation_utils.version>0.11</documentation_utils.version>
         <aws.glue_client.version>3.4.0-SNAPSHOT</aws.glue_client.version>
+        <hadoop.version>3.3.4</hadoop.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-aws</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.amazonaws.glue</groupId>
             <artifactId>aws-glue-datacatalog-hive3-client</artifactId>

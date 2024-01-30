@@ -20,10 +20,7 @@ object SparkUtils {
       new SparkConf()
         .setMaster(master)
         .setAppName(app)
-        .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
         .set("hive.metastore client.factory.class", "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactor")
-
-        .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .set(CATALOG_IMPLEMENTATION.key, "hive")
         .set("spark.sql.catalog.local.type", "hadoop")
         .set("aws.glue.cache.table.enable", "true")
@@ -82,6 +79,17 @@ object SparkUtils {
   }
 
   def main(args: Array[String]): Unit = {
+    val accessKey = args(0)
+    val secretKey = args(1)
     val spark = getSession()
+    spark.sparkContext.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", accessKey)
+    spark.sparkContext.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", secretKey)
+    val result_df = spark.range(1000)
+    result_df.write//.partitionBy("my_column")
+    .option("fs.s3a.committer.name", "partitioned")
+      .option("fs.s3a.committer.staging.conflict-mode", "replace")
+      .option("fs.s3a.fast.upload.buffer", "bytebuffer")
+      .mode("overwrite")
+      .csv(path="s3a://phbucketthatshouldreallynotexistyet/output")
   }
 }
