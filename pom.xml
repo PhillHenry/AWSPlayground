@@ -141,6 +141,12 @@
             <version>${documentation_utils.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk</artifactId>
+            <version>1.12.647</version>
+        </dependency>
+
     </dependencies>
 
     <build>
