@@ -103,6 +103,8 @@ object SparkUtils {
 //      .mode("overwrite")
 //      .csv(path="s3a://phbucketthatshouldreallynotexistyet/output")
 
-    result_df.write.saveAsTable("mysparktable")
+    // you need to run recursively:
+    // aws s3 rm s3://phbucketthatshouldreallynotexistyet/default/
+    result_df.write.mode("append").saveAsTable("mysparktable")
   }
 }
