@@ -7,6 +7,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import java.lang
 import java.nio.file.Files
+import scala.util.{Failure, Success, Try}
 
 object SparkUtils {
   val tmpDir: String = Files.createTempDirectory("SparkForTesting").toString
@@ -32,20 +33,10 @@ object SparkUtils {
         .set("spark.hadoop.hive.metastore.warehouse.dir","s3://" + bucketName + "/default")
         .set("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider, org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider, com.amazonaws.auth.EnvironmentVariableCredentialsProvider, org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider")
         .set("spark.hadoop.fs.s3a.impl","org.apache.hadoop.fs.s3a.S3AFileSystem")
-//        .set("spark.sql.warehouse.dir","s3://phbucketthatshouldreallynotexistyet/default")
+        .set("spark.sql.warehouse.dir","s3://phbucketthatshouldreallynotexistyet/default")
         .set("spark.hadoop.fs.s3.impl","org.apache.hadoop.fs.s3a.S3AFileSystem")
-        .set("spark.sql.extensions","org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-        .set("spark.sql.catalogImplementation","hive")
-        .set("spark.sql.catalog.iceberg","org.apache.iceberg.spark.SparkCatalog")
-        .set("spark.sql.catalog.iceberg.catalog-impl","org.apache.iceberg.aws.glue.GlueCatalog")
-        .set("spark.sql.catalog.iceberg.io-impl","org.apache.iceberg.aws.s3.S3FileIO")
-        .set("#spark.sql.catalog.iceberg.lock-impl","org.apache.iceberg.aws.dynamodb.DynamoDbLockManager")
-        .set("#spark.sql.catalog.iceberg.lock.table","IcebergLockTable")
-        .set("spark.sql.catalog.iceberg.warehouse","s3://" + bucketName + "/iceberg")
-        .set("spark.sql.emr.internal.extensions","com.amazonaws.emr.spark.EmrSparkSessionExtensions")
-        .set("spark.sql.extensions","org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
         .set("spark.sql.hive.metastore.sharedPrefixes","com.amazonaws.services.dynamodbv2")
-//        .set("spark.sql.parquet.output.committer.class","org.apache.hadoop.fs.s3a.commit.staging.StagingCommitter")
+//        .set("spark.sql.parquet.output.committer.class","com.amazonaws.emr.spark.EmrSparkSessionExtensions")
         .set("spark.sql.sources.partitionOverwriteMode","dynamic")
         .set("spark.sql.thriftserver.scheduler.pool","fair")
         .set("spark.sql.ui.explainMode","extended")
@@ -58,7 +49,7 @@ object SparkUtils {
         .set("aws.glue.socket-timeout","30000")
         .set("hive.imetastoreclient.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
         .set("hive.metastore.client.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
-//        .set("hive.metastore.uris","thrift://FOR_YOUR_METASTORE_URI_SEE_SPARK_UI_ENVIRONMENT_TAB:9083")
+        .set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
         .set("hive.metastore.warehouse.dir","s3://" + bucketName + "/default")
         .set("hive.metastore.connect.retries","15")
         .set("aws.glue.cache.table.enable","true")
@@ -67,6 +58,13 @@ object SparkUtils {
         .set("aws.glue.cache.db.enable","true")
         .set("aws.glue.cache.db.size","1000")
         .set("aws.glue.cache.db.ttl-mins","30")
+//
+//        .set("hive.metastore.uris", "thrift://hivemetastore-hive-metastore:9083")
+//        .set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
+//
+//        .set("spark.sql.catalog.spark_catalog.type","hive")
+//        .set("spark.sql.catalog.hive_prod.type","hive")
+//        .set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
 
 //        .setSparkHome(tmpDir)
     }
@@ -85,7 +83,9 @@ object SparkUtils {
     conf.set("aws.glue.socket-timeout","30000")
     conf.set("hive.imetastoreclient.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
     conf.set("hive.metastore.client.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
-    conf.set("hive.metastore.uris","thrift://FOR_YOUR_METASTORE_URI_SEE_SPARK_UI_ENVIRONMENT_TAB:9083")
+//    conf.set("hive.metastore.uris","thrift://hivemetastore-hive-metastore:9083")
+//    conf.set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
+//    conf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
     conf.set("hive.metastore.warehouse.dir","s3://" + bucketName + "/" + highLevelObjectName)
     conf.set("hive.metastore.connect.retries","15")
     conf.set("aws.glue.cache.table.enable","true")
@@ -94,9 +94,23 @@ object SparkUtils {
     conf.set("aws.glue.cache.db.enable","true")
     conf.set("aws.glue.cache.db.size","1000")
     conf.set("aws.glue.cache.db.ttl-mins","30")
+//
+//
+//    conf.set("hive.metastore.uris", "thrift://hivemetastore-hive-metastore:9083")
+//    conf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
+//
+//    conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+//    conf.set("spark.sql.iceberg.handle-timestamp-without-timezone", "true")
+//
+//    conf.set("spark.sql.catalog.spark_catalog","org.apache.iceberg.spark.SparkSessionCatalog")
+//    conf.set("spark.sql.catalog.spark_catalog.type","hive")
+//    conf.set("spark.sql.catalog.hive_prod","org.apache.iceberg.spark.SparkCatalog")
+//    conf.set("spark.sql.catalog.hive_prod.type","hive")
+//    conf.set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
+
   }
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = Try {
     val spark = getSession()
     configureHadoop(spark.sparkContext.hadoopConfiguration)
     val result_df = spark.range(1000)
@@ -113,5 +127,14 @@ object SparkUtils {
     val keys = s3Utils.getObjectNamesIn(bucketName)
     s3Utils.deleteObjectsMatching(keys, bucketName, highLevelObjectName)
     result_df.write.mode("append").saveAsTable("mysparktable")
-  }
+    s3Utils.getObjectNamesIn(bucketName).forEach { obj: String =>
+      println("Object = " + obj);
+    }
+  } match {
+      case Success(x) =>
+        println("Result: Success")
+      case Failure(x) =>
+        println("Result: Failed!")
+        x.printStackTrace()
+    }
 }

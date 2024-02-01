@@ -35,6 +35,7 @@ public class S3Utils {
         S3Utils app = new S3Utils(bucketName);
         Collection<String> keys = app.getObjectNamesIn(bucketName);
         app.deleteObjectsMatching(keys, bucketName, "default");
+        app.deleteObjectsMatching(keys, bucketName, "output");
     }
 
     private final AmazonS3 s3Client;
