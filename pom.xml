@@ -61,16 +61,6 @@
             <version>1.2.11</version>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws.glue</groupId>
-            <artifactId>aws-glue-datacatalog-hive3-client</artifactId>
-            <version>${aws.glue_client.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws.glue</groupId>
-            <artifactId>aws-glue-datacatalog-spark-client</artifactId>
-            <version>${aws.glue_client.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
             <version>${scala.version}</version>
@@ -103,20 +93,17 @@
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-core</artifactId>
             <version>${iceberg.version}</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-spark</artifactId>
             <version>${iceberg.version}</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-spark-runtime-${spark.compat.version}_${scala.compat.version}
             </artifactId>
             <version>${iceberg.version}</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -150,7 +137,22 @@
             <artifactId>spark</artifactId>
             <version>${documentation_utils.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-aws</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
 
+        <dependency>
+            <groupId>com.amazonaws.glue</groupId>
+            <artifactId>aws-glue-datacatalog-spark-client</artifactId>
+            <version>${aws.glue_client.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -189,6 +191,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.amazonaws.glue</groupId>
+            <artifactId>aws-glue-datacatalog-hive3-client</artifactId>
+            <version>${aws.glue_client.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
@@ -223,16 +231,7 @@
 <!--        </dependency>-->
 
 
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-aws</artifactId>
-            <version>${hadoop.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-common</artifactId>
-            <version>${hadoop.version}</version>
-        </dependency>
+
     </dependencies>
 
     <build>
