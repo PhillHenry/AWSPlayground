@@ -4,25 +4,30 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.internal.StaticSQLConf.{CATALOG_IMPLEMENTATION, WAREHOUSE_PATH}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext}
+import uk.co.odinconsultants.documentation_utils.Datum
 
 import java.lang
+import java.lang.reflect.Field
 import java.nio.file.Files
+import java.sql.{Date, Timestamp}
 import scala.util.{Failure, Success, Try}
 
 object SparkUtils {
   val tmpDir: String = Files.createTempDirectory("SparkForTesting").toString
 
-  val sparkSession: SparkSession = getSession("bdd_tests")
+  val TABLE_NAME = "mysparktable"
 
   val highLevelObjectName = "default"
 
-  private val bucketName = "phbucketthatshouldreallynotexistyet"
+  val bucketName = "phbucketthatshouldreallynotexistyet"
 
   def getSession(app: String = "bdd_tests"): SparkSession = {
+    val warehouseDir: String = s"s3://$bucketName/default"
+    println(s"PH: warehouseDir = $warehouseDir")
     val master   : String    = "local[2]"
+    println(s"Using temp directory $tmpDir")
+    System.setProperty("derby.system.home", tmpDir)
     val sparkConf: SparkConf = {
-      println(s"Using temp directory $tmpDir")
-      System.setProperty("derby.system.home", tmpDir)
       new SparkConf()
         .setMaster(master)
         .setAppName(app)
@@ -30,7 +35,7 @@ object SparkUtils {
         .set(CATALOG_IMPLEMENTATION.key, "hive")
 
         .set("spark.hadoop.hive.metastore.client.factory.class", "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
-        .set("spark.hadoop.hive.metastore.warehouse.dir","s3://" + bucketName + "/default")
+        .set("spark.hadoop.hive.metastore.warehouse.dir",warehouseDir)
         .set("spark.hadoop.fs.s3a.aws.credentials.provider","org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider, org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider, com.amazonaws.auth.EnvironmentVariableCredentialsProvider, org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider")
         .set("spark.hadoop.fs.s3a.impl","org.apache.hadoop.fs.s3a.S3AFileSystem")
         .set("spark.sql.warehouse.dir","s3://phbucketthatshouldreallynotexistyet/default")
@@ -42,6 +47,14 @@ object SparkUtils {
         .set("spark.sql.ui.explainMode","extended")
         .set("spark.sql.parquet.fs.optimized.committer.optimization-enabled", "true")
 
+        .set("spark.sql.extensions","org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+        .set("spark.sql.catalog.iceberg","org.apache.iceberg.spark.SparkCatalog")
+        .set("spark.sql.catalog.iceberg.catalog-impl","org.apache.iceberg.aws.glue.GlueCatalog")
+        .set("spark.sql.catalog.iceberg.io-impl","org.apache.iceberg.aws.s3.S3FileIO")
+        .set("spark.sql.catalog.iceberg.warehouse","s3://phbucketthatshouldreallynotexistyet/iceberg")
+        .set("spark.sql.extensions","org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+//        .set("spark.sql.defaultCatalog", "iceberg") // this "activates" the settings above
+
 
         .set("aws.glue.endpoint","https://glue.eu-west-2.amazonaws.com")
         .set("aws.glue.region","eu-west-2")
@@ -50,7 +63,7 @@ object SparkUtils {
         .set("hive.imetastoreclient.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
         .set("hive.metastore.client.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
         .set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
-        .set("hive.metastore.warehouse.dir","s3://" + bucketName + "/default")
+        .set("hive.metastore.warehouse.dir","s3://phbucketthatshouldreallynotexistyet/default")
         .set("hive.metastore.connect.retries","15")
         .set("aws.glue.cache.table.enable","true")
         .set("aws.glue.cache.table.size","1000")
@@ -72,21 +85,25 @@ object SparkUtils {
     SparkSession
       .builder()
       .appName(app)
-      .master("local[2]")
+      .master("local[2]").enableHiveSupport()
       .getOrCreate()
   }
 
   def configureHadoop(conf: Configuration): Unit = {
+    val hiveWarehouseDir: String = "s3://" + bucketName + "/" + highLevelObjectName
+
+    println(s"PH: $hiveWarehouseDir")
+
     conf.set("aws.glue.endpoint","https://glue.eu-west-2.amazonaws.com")
     conf.set("aws.glue.region","eu-west-2")
     conf.set("aws.glue.connection-timeout","30000")
     conf.set("aws.glue.socket-timeout","30000")
     conf.set("hive.imetastoreclient.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
     conf.set("hive.metastore.client.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
-//    conf.set("hive.metastore.uris","thrift://hivemetastore-hive-metastore:9083")
-//    conf.set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
-//    conf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
-    conf.set("hive.metastore.warehouse.dir","s3://" + bucketName + "/" + highLevelObjectName)
+    //    conf.set("hive.metastore.uris","thrift://hivemetastore-hive-metastore:9083")
+    //    conf.set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
+    //    conf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
+    conf.set("hive.metastore.warehouse.dir",hiveWarehouseDir)
     conf.set("hive.metastore.connect.retries","15")
     conf.set("aws.glue.cache.table.enable","true")
     conf.set("aws.glue.cache.table.size","1000")
@@ -108,9 +125,15 @@ object SparkUtils {
 //    conf.set("spark.sql.catalog.hive_prod.type","hive")
 //    conf.set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
 
+    conf.set("spark.sql.defaultCatalog", "my_catalog")
+    conf.set("spark.sql.catalog.my_catalog", "org.apache.iceberg.spark.SparkCatalog")
+    conf.set("spark.sql.catalog.my_catalog.warehouse", s"s3://$bucketName/my/key/prefix")
+    conf.set("spark.sql.catalog.my_catalog.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog")
+    conf.set("spark.sql.catalog.my_catalog.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
   }
 
   def main(args: Array[String]): Unit = Try {
+    println(s"PH: bucketName = " + bucketName)
     val spark = getSession()
     configureHadoop(spark.sparkContext.hadoopConfiguration)
     val result_df = spark.range(1000)
@@ -126,7 +149,10 @@ object SparkUtils {
     val s3Utils = new S3Utils(bucketName)
     val keys = s3Utils.getObjectNamesIn(bucketName)
     s3Utils.deleteObjectsMatching(keys, bucketName, highLevelObjectName)
-    result_df.write.mode("append").saveAsTable("mysparktable")
+
+    createDatumTable(TABLE_NAME)
+    spark.createDataFrame(createData(5, new java.sql.Date(new java.util.Date().getTime), 2, 10000, 30))
+    result_df.writeTo(TABLE_NAME).create()
     s3Utils.getObjectNamesIn(bucketName).forEach { obj: String =>
       println("Object = " + obj);
     }
@@ -137,4 +163,25 @@ object SparkUtils {
         println("Result: Failed!")
         x.printStackTrace()
     }
+
+  def createData(num_partitions: Int, now: Date, dayDelta: Int, tsDelta: Long, num_rows: Int): Seq[Datum] = {
+    val DayMS: Long = 24 * 60 * 60 * 1000
+
+    val today = new Date((now.getTime / DayMS).toLong * DayMS)
+    Seq.range(0, num_rows).map((i: Int) => Datum(
+      i,
+      s"label_$i",
+      i % num_partitions,
+      new Date(today.getTime + (i * DayMS * dayDelta)),
+      new Timestamp(now.getTime + (i * tsDelta)))
+    )
+  }
+  def createDatumTable(tableName: String): String = {
+    val fields: String = classOf[Datum].getDeclaredFields
+      .map { field: Field =>
+        s"${field.getName} ${field.getType.getSimpleName}"
+      }
+      .mkString(",\n")
+    s"""CREATE TABLE $tableName ($fields)""".stripMargin
+  }
 }
