@@ -7,7 +7,6 @@ import uk.co.odinconsultants.documentation_utils.Datum
 
 import java.lang.reflect.Field
 import java.nio.file.Files
-import java.sql.{Date, Timestamp}
 import scala.util.{Failure, Success, Try}
 
 object SparkUtils {
@@ -19,14 +18,40 @@ object SparkUtils {
 
   val bucketName = "phbucketthatshouldreallynotexistyet"
 
-  val REGION = "eu-west-2"
-
   val CATALOG = "iceberg"
 
   val DATABASE = "ph_tempdb"
 
+  val warehouseDir: String = s"s3://$bucketName/default"
+
+  val properties: Map[String, String] = Map(
+    CATALOG_IMPLEMENTATION.key                                      -> "hive",
+    "spark.hadoop.hive.metastore.client.factory.class"              ->
+      "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
+    "spark.hadoop.hive.metastore.warehouse.dir"                     -> warehouseDir,
+    "spark.hadoop.fs.s3a.aws.credentials.provider"                  ->
+      "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider,org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider,com.amazonaws.auth.EnvironmentVariableCredentialsProvider,org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider",
+    "spark.hadoop.fs.s3a.impl"                                      -> "org.apache.hadoop.fs.s3a.S3AFileSystem",
+    "spark.sql.warehouse.dir"                                       -> s"s3://$bucketName/default",
+    "spark.hadoop.fs.s3.impl"                                       -> "org.apache.hadoop.fs.s3a.S3AFileSystem",
+    "spark.sql.hive.metastore.sharedPrefixes"                       -> "com.amazonaws.services.dynamodbv2",
+    //        "spark.sql.parquet.output.committer.class" ->"com.amazonaws.emr.spark.EmrSparkSessionExtensions",
+    "spark.sql.sources.partitionOverwriteMode"                      -> "dynamic",
+    "spark.sql.thriftserver.scheduler.pool"                         -> "fair",
+    "spark.sql.ui.explainMode"                                      -> "extended",
+    "spark.sql.parquet.fs.optimized.committer.optimization-enabled" -> "true",
+    "spark.sql.extensions"                                          ->
+      "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+    s"spark.sql.catalog.$CATALOG"                                   -> "org.apache.iceberg.spark.SparkCatalog",
+    s"spark.sql.catalog.$CATALOG.catalog-impl"                      -> "org.apache.iceberg.aws.glue.GlueCatalog",
+    s"spark.sql.catalog.$CATALOG.io-impl"                           -> "org.apache.iceberg.aws.s3.S3FileIO",
+    s"spark.sql.catalog.$CATALOG.warehouse"                         -> s"s3://$bucketName/iceberg",
+    "spark.sql.extensions"                                          ->
+      "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+    "spark.sql.defaultCatalog"                                      -> CATALOG,
+  )
+
   def getSession(app: String = "bdd_tests"): SparkSession = {
-    val warehouseDir: String = s"s3://$bucketName/default"
     println(s"PH: warehouseDir = $warehouseDir")
     val master: String       = "local[2]"
     println(s"Using temp directory $tmpDir")
@@ -35,38 +60,10 @@ object SparkUtils {
       new SparkConf()
         .setMaster(master)
         .setAppName(app)
-        .set(CATALOG_IMPLEMENTATION.key, "hive")
-        .set(
-          "spark.hadoop.hive.metastore.client.factory.class",
-          "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
-        )
-        .set("spark.hadoop.hive.metastore.warehouse.dir", warehouseDir)
-        .set(
-          "spark.hadoop.fs.s3a.aws.credentials.provider",
-          "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider, org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider, com.amazonaws.auth.EnvironmentVariableCredentialsProvider, org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider",
-        )
-        .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-        .set("spark.sql.warehouse.dir", s"s3://$bucketName/default")
-        .set("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-        .set("spark.sql.hive.metastore.sharedPrefixes", "com.amazonaws.services.dynamodbv2")
-//        .set("spark.sql.parquet.output.committer.class","com.amazonaws.emr.spark.EmrSparkSessionExtensions")
-        .set("spark.sql.sources.partitionOverwriteMode", "dynamic")
-        .set("spark.sql.thriftserver.scheduler.pool", "fair")
-        .set("spark.sql.ui.explainMode", "extended")
-        .set("spark.sql.parquet.fs.optimized.committer.optimization-enabled", "true")
-        .set(
-          "spark.sql.extensions",
-          "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
-        )
-        .set(s"spark.sql.catalog.$CATALOG", "org.apache.iceberg.spark.SparkCatalog")
-        .set(s"spark.sql.catalog.$CATALOG.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog")
-        .set(s"spark.sql.catalog.$CATALOG.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
-        .set(s"spark.sql.catalog.$CATALOG.warehouse", s"s3://$bucketName/iceberg")
-        .set(
-          "spark.sql.extensions",
-          "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
-        )
-        .set("spark.sql.defaultCatalog", CATALOG) // this "activates" the settings above
+
+    properties.foreach { case(k: String, v: String) =>
+      sparkConf.set(k, v)
+    }
 
     SparkContext.getOrCreate(sparkConf)
     SparkSession
@@ -77,10 +74,6 @@ object SparkUtils {
       .getOrCreate()
   }
 
-  /** Need to add
-    * /home/henryp/Code/Java/iceberg/aws-bundle/build/libs/iceberg-aws-bundle-1.4.0-SNAPSHOT.jar
-    * to the classpath
-    */
   def main(args: Array[String]): Unit = Try {
     println(s"PH: bucketName = " + bucketName)
     val spark = getSession()
