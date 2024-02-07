@@ -1,12 +1,10 @@
 package uk.co.odinconsultants
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.spark.sql.internal.StaticSQLConf.{CATALOG_IMPLEMENTATION, WAREHOUSE_PATH}
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.internal.StaticSQLConf.CATALOG_IMPLEMENTATION
 import org.apache.spark.{SparkConf, SparkContext}
 import uk.co.odinconsultants.documentation_utils.Datum
 
-import java.lang
 import java.lang.reflect.Field
 import java.nio.file.Files
 import java.sql.{Date, Timestamp}
@@ -91,34 +89,6 @@ object SparkUtils {
       .getOrCreate()
   }
 
-  def configureHadoop(conf: Configuration): Unit = {
-    val hiveWarehouseDir: String = "s3://" + bucketName + "/" + highLevelObjectName
-
-    println(s"PH: $hiveWarehouseDir")
-
-    conf.set("aws.glue.endpoint","https://glue.eu-west-2.amazonaws.com")
-    conf.set("aws.glue.region",REGION)
-    conf.set("aws.glue.connection-timeout","30000")
-    conf.set("aws.glue.socket-timeout","30000")
-    conf.set("hive.imetastoreclient.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
-    conf.set("hive.metastore.client.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
-
-    conf.set("hive.metastore.warehouse.dir",hiveWarehouseDir)
-    conf.set("hive.metastore.connect.retries","15")
-    conf.set("aws.glue.cache.table.enable","true")
-    conf.set("aws.glue.cache.table.size","1000")
-    conf.set("aws.glue.cache.table.ttl-mins","30")
-    conf.set("aws.glue.cache.db.enable","true")
-    conf.set("aws.glue.cache.db.size","1000")
-    conf.set("aws.glue.cache.db.ttl-mins","30")
-
-    conf.set("spark.sql.defaultCatalog", "my_catalog")
-    conf.set("spark.sql.catalog.my_catalog", "org.apache.iceberg.spark.SparkCatalog")
-    conf.set("spark.sql.catalog.my_catalog.warehouse", s"s3://$bucketName/my/key/prefix")
-    conf.set("spark.sql.catalog.my_catalog.catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog")
-    conf.set("spark.sql.catalog.my_catalog.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
-  }
-
   /**
    * Need to add
    * /home/henryp/Code/Java/iceberg/aws-bundle/build/libs/iceberg-aws-bundle-1.4.0-SNAPSHOT.jar
@@ -127,8 +97,6 @@ object SparkUtils {
   def main(args: Array[String]): Unit = Try {
     println(s"PH: bucketName = " + bucketName)
     val spark = getSession()
-    configureHadoop(spark.sparkContext.hadoopConfiguration)
-    val result_df = spark.range(1000)
 
     val s3Utils = new S3Utils(bucketName)
 
@@ -156,18 +124,7 @@ object SparkUtils {
         x.printStackTrace()
     }
 
-  def createData(num_partitions: Int, now: Date, dayDelta: Int, tsDelta: Long, num_rows: Int): Seq[Datum] = {
-    val DayMS: Long = 24 * 60 * 60 * 1000
 
-    val today = new Date((now.getTime / DayMS).toLong * DayMS)
-    Seq.range(0, num_rows).map((i: Int) => Datum(
-      i,
-      s"label_$i",
-      i % num_partitions,
-      new Date(today.getTime + (i * DayMS * dayDelta)),
-      new Timestamp(now.getTime + (i * tsDelta)))
-    )
-  }
   def createDatumTable(tableName: String): String = {
     val fields: String = classOf[Datum].getDeclaredFields
       .map { field: Field =>
