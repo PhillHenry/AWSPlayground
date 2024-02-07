@@ -51,7 +51,7 @@ object SparkUtils {
     "spark.sql.defaultCatalog"                                      -> CATALOG,
   )
 
-  val getSession: SparkSession = {
+  val spark: SparkSession = {
     println(s"PH: warehouseDir = $warehouseDir")
     val master: String       = "local[2]"
     println(s"Using temp directory $tmpDir")
@@ -75,8 +75,6 @@ object SparkUtils {
 
   def main(args: Array[String]): Unit = Try {
     println(s"PH: bucketName = " + bucketName)
-    val spark = getSession
-
     val s3Utils = new S3Utils(bucketName)
 
     val table          = s"$CATALOG.$DATABASE.$TABLE_NAME"
@@ -91,7 +89,7 @@ object SparkUtils {
     )
     s3Utils.deleteObjectsMatching(s3Utils.getObjectNamesIn(bucketName), bucketName, "iceberg")
 
-    val sql: String = createDatumTable(table)
+    val sql: String = tableCreationSQL(table)
     println(sql)
     spark.sql(sql)
 
@@ -106,13 +104,12 @@ object SparkUtils {
       x.printStackTrace()
   }
 
-  def createDatumTable(tableName: String): String = {
+  def tableCreationSQL(tableName: String): String = {
     val fields: String = classOf[Datum].getDeclaredFields
       .map { field: Field =>
         s"${field.getName} ${field.getType.getSimpleName}"
       }
       .mkString(",\n")
-    // Database my_catalog not found. (Service: Glue, Status Code: 400, Request ID: 3820aa4a-f29f-433e-9c07-7968d0747207)
     s"""CREATE TABLE $tableName ($fields)""".stripMargin
   }
 }

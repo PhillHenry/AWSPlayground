@@ -1,0 +1,4 @@
+baseURL = 'https://aws.thebigdata.space/'
+languageCode = 'en-us'
+title = 'AWS BDDs'
+theme        = "holy"
