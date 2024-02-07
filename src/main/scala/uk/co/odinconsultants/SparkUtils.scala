@@ -81,15 +81,7 @@ object SparkUtils {
         .set("aws.glue.cache.db.ttl-mins","30")
 
         .setJars(List("file:///home/henryp/Code/Java/iceberg/aws-bundle/build/libs/iceberg-aws-bundle-1.4.0-SNAPSHOT.jar"))
-//
-//        .set("hive.metastore.uris", "thrift://hivemetastore-hive-metastore:9083")
-//        .set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
-//
-//        .set("spark.sql.catalog.spark_catalog.type","hive")
-//        .set("spark.sql.catalog.hive_prod.type","hive")
-//        .set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
 
-//        .setSparkHome(tmpDir)
     }
     SparkContext.getOrCreate(sparkConf)
     SparkSession
@@ -110,9 +102,7 @@ object SparkUtils {
     conf.set("aws.glue.socket-timeout","30000")
     conf.set("hive.imetastoreclient.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
     conf.set("hive.metastore.client.factory.class","com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
-    //    conf.set("hive.metastore.uris","thrift://hivemetastore-hive-metastore:9083")
-    //    conf.set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
-    //    conf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
+
     conf.set("hive.metastore.warehouse.dir",hiveWarehouseDir)
     conf.set("hive.metastore.connect.retries","15")
     conf.set("aws.glue.cache.table.enable","true")
@@ -121,19 +111,6 @@ object SparkUtils {
     conf.set("aws.glue.cache.db.enable","true")
     conf.set("aws.glue.cache.db.size","1000")
     conf.set("aws.glue.cache.db.ttl-mins","30")
-//
-//
-//    conf.set("hive.metastore.uris", "thrift://hivemetastore-hive-metastore:9083")
-//    conf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
-//
-//    conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
-//    conf.set("spark.sql.iceberg.handle-timestamp-without-timezone", "true")
-//
-//    conf.set("spark.sql.catalog.spark_catalog","org.apache.iceberg.spark.SparkSessionCatalog")
-//    conf.set("spark.sql.catalog.spark_catalog.type","hive")
-//    conf.set("spark.sql.catalog.hive_prod","org.apache.iceberg.spark.SparkCatalog")
-//    conf.set("spark.sql.catalog.hive_prod.type","hive")
-//    conf.set("spark.sql.catalog.hive_prod.uri", "thrift://hivemetastore-hive-metastore:9083")
 
     conf.set("spark.sql.defaultCatalog", "my_catalog")
     conf.set("spark.sql.catalog.my_catalog", "org.apache.iceberg.spark.SparkCatalog")
@@ -152,28 +129,21 @@ object SparkUtils {
     val spark = getSession()
     configureHadoop(spark.sparkContext.hadoopConfiguration)
     val result_df = spark.range(1000)
-//    result_df.write//.partitionBy("my_column")
-//    .option("fs.s3a.committer.name", "partitioned")
-//      .option("fs.s3a.committer.staging.conflict-mode", "replace")
-//      .option("fs.s3a.fast.upload.buffer", "bytebuffer")
-//      .mode("overwrite")
-//      .csv(path="s3a://phbucketthatshouldreallynotexistyet/output")
 
-    // you need to run recursively:
-    // aws s3 rm s3://phbucketthatshouldreallynotexistyet/default/
     val s3Utils = new S3Utils(bucketName)
-    s3Utils.deleteObjectsMatching(s3Utils.getObjectNamesIn(bucketName), bucketName, highLevelObjectName)
-    s3Utils.deleteObjectsMatching(s3Utils.getObjectNamesIn(bucketName), bucketName, "iceberg")
 
     val table = s"$CATALOG.$DATABASE.$TABLE_NAME"
     val exits: Boolean = spark.catalog.tableExists(table)
     println(s"Table $table Exits $exits")
+    if (exits) spark.sql(s"DROP TABLE $table")
+
+    s3Utils.deleteObjectsMatching(s3Utils.getObjectNamesIn(bucketName), bucketName, highLevelObjectName)
+    s3Utils.deleteObjectsMatching(s3Utils.getObjectNamesIn(bucketName), bucketName, "iceberg")
 
     val sql: String = createDatumTable(table)
     println(sql)
     spark.sql(sql)
-//    spark.createDataFrame(createData(5, new java.sql.Date(new java.util.Date().getTime), 2, 10000, 30))
-//    result_df.writeTo(table).create()
+
 
     s3Utils.getObjectNamesIn(bucketName).forEach { obj: String =>
       println("Object = " + obj);
