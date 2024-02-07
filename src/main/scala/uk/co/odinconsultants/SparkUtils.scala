@@ -51,7 +51,7 @@ object SparkUtils {
     "spark.sql.defaultCatalog"                                      -> CATALOG,
   )
 
-  def getSession(app: String = "bdd_tests"): SparkSession = {
+  val getSession: SparkSession = {
     println(s"PH: warehouseDir = $warehouseDir")
     val master: String       = "local[2]"
     println(s"Using temp directory $tmpDir")
@@ -59,7 +59,7 @@ object SparkUtils {
     val sparkConf: SparkConf =
       new SparkConf()
         .setMaster(master)
-        .setAppName(app)
+        .setAppName("bdd_tests")
 
     properties.foreach { case(k: String, v: String) =>
       sparkConf.set(k, v)
@@ -68,7 +68,6 @@ object SparkUtils {
     SparkContext.getOrCreate(sparkConf)
     SparkSession
       .builder()
-      .appName(app)
       .master("local[2]")
       .enableHiveSupport()
       .getOrCreate()
@@ -76,7 +75,7 @@ object SparkUtils {
 
   def main(args: Array[String]): Unit = Try {
     println(s"PH: bucketName = " + bucketName)
-    val spark = getSession()
+    val spark = getSession
 
     val s3Utils = new S3Utils(bucketName)
 
